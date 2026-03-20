@@ -1,6 +1,6 @@
 # Results — HENS-Astar
 
-**Problem:** Linnhoff and Hindmarsh (1983) classic benchmark, 4 hot streams and 4 cold streams  
+**Problem:** Linnhoff and Hindmarsh (1983) benchmark, 4 hot streams and 4 cold streams  
 **Algorithm:** A* Decision-Tree Search  
 **Delta T min:** 10 °C
 
@@ -20,7 +20,8 @@ ___
 | C4 | Cold | 20 | 100 | 4.0 | 320 |
 
 Total hot duty: 1225.0 kW  
-Total cold duty: 1035.0 kW
+Total cold duty: 1035.0 kW  
+Surplus hot duty (must be rejected via cooling water): 190.0 kW
 
 ___
 
@@ -28,7 +29,7 @@ ___
 
 ### Match Matrix
 
-Rows represent cold streams and columns represent hot streams. Each cell shows the sequence in which exchangers were placed.
+Rows are cold streams, columns are hot streams. Numbers show the order in which exchangers were placed.
 
 ```
             H1      H2      H3      H4
@@ -40,7 +41,7 @@ Rows represent cold streams and columns represent hot streams. Each cell shows t
 
 ### Process Heat Exchangers
 
-| Unit | Hot Stream | Cold Stream | Duty (kW) | Annualized Cost ($/yr) |
+| Unit | Hot | Cold | Duty (kW) | Annualized Cost ($/yr) |
 |---|---|---|---|---|
 | HX1 | H1 | C3 | 220.0 | 8,376 |
 | HX2 | H1 | C2 | 20.0 | 7,252 |
@@ -50,6 +51,8 @@ Rows represent cold streams and columns represent hot streams. Each cell shows t
 | HX6 | H4 | C4 | 125.0 | 8,204 |
 
 ### Utility Units
+
+No steam heating was required. H3 and H4 both have target temperatures low enough that cooling water handles the remainder after process exchange.
 
 | Type | Stream | Duty (kW) | Annual Cost ($/yr) |
 |---|---|---|---|
@@ -75,7 +78,7 @@ ___
 | Nodes expanded | 235 |
 | Nodes generated | 599 |
 | Maximum tree depth reached | 6 |
-| Solution found at depth | 6 |
+| Solution depth | 6 |
 | Time elapsed | 0.022 seconds |
 
 ### Tree Level Breakdown
@@ -90,11 +93,11 @@ ___
 | 5 | 61 |
 | 6 | 4 |
 
-The search expanded a total of 235 nodes before reaching the goal at tree level 6. The branching factor peaks at levels 3 and 4 where the most feasible stream combinations exist, and collapses sharply at level 6 once streams are nearly satisfied.
+Branching peaks at levels 3 and 4 where stream loads are partially satisfied and the most feasible pair combinations exist. By level 6, most streams are near their targets and the branching collapses.
 
 ___
 
-## Energy Balance Verification
+## Energy Balance
 
 All streams reached their target temperatures within the 0.5 kW tolerance.
 
@@ -111,10 +114,8 @@ All streams reached their target temperatures within the 0.5 kW tolerance.
 
 ___
 
-## Key Observations
+## Notes
 
-The optimal network uses 6 process heat exchangers and 2 cooling water utility units. No external steam heating was required, as the total hot duty (1225 kW) exceeds the total cold duty (1035 kW), leaving a surplus of 190 kW that must be rejected via cooling water.
+The network recovers heat between H1 and C3/C2, H2 and C2/C4, H3 and C1, and H4 and C4. No cold stream required steam because the total hot duty exceeds total cold duty by 190 kW, leaving enough process heat available for all cold targets.
 
-The A* search found the solution in 235 node expansions and 0.022 seconds, demonstrating the effectiveness of the two-component admissible heuristic and the anchor-hot pruning rule in containing the search space. Without pruning, the theoretical maximum number of paths through a 4H x 4C network would be substantially larger.
-
-The solution places H1 against C3 and C2, H2 against C2 and C4, H3 against C1, and H4 against C4, achieving maximum heat recovery between process streams before resorting to utilities.
+The search found the optimal solution in 235 node expansions and 22 milliseconds. For context, a naive search without the anchor-hot pruning rule (P4) would explore the same network under multiple placement orderings, roughly multiplying the search space by the factorial of the number of exchangers placed.
