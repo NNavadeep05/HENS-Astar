@@ -4,11 +4,11 @@
 
 ___
 
-## Overview
+## What This Is
 
-HENS-Astar solves the Heat Exchanger Network Synthesis (HENS) problem, a core challenge in chemical process engineering, by framing it as a decision-tree search and solving it with the A\* algorithm.
+HENS is a classic process engineering problem: given a set of hot and cold streams, find the cheapest network of heat exchangers that brings each stream to its target temperature. The hard part is that the number of possible networks grows fast, and most formulations end up either brute-forcing it or relying on heuristics that do not guarantee optimality.
 
-Given a set of hot and cold process streams, the goal is to design a network of heat exchangers that transfers heat between streams as efficiently as possible, minimizing the Total Annualized Cost (TAC) of the network. This includes annualized capital costs for exchanger units and operating costs for external utilities such as steam and cooling water.
+This project uses A\* search on a decision tree, where each node represents a partial network and each branch adds one exchanger. Because the heuristic is admissible, the first complete solution A\* finds is guaranteed to be optimal.
 
 ___
 
@@ -16,39 +16,38 @@ ___
 
 | Element | Description |
 |---|---|
-| Root node | Empty network with no matches placed |
-| Tree level k | k process heat exchangers have been placed |
+| Root node | Empty network, no matches placed |
+| Tree level k | k process heat exchangers placed so far |
 | Branch action | Place one feasible (Hi, Cj) match |
 | Goal | All stream duties satisfied within tolerance |
 | Objective | Minimize Total Annualized Cost (TAC) |
 
-The search space is pruned using thermodynamic feasibility constraints (the Delta T min condition) and a canonical ordering rule that collapses commutative-equivalent paths into a single branch.
+At each level, the branching is constrained by the Delta T min condition and a canonical ordering rule that prevents the same network from being explored twice under different placement sequences.
 
 ___
 
 ## Algorithm
 
-**Search:** A\* on a decision tree with a min-heap priority queue ordered by f(n) = g(n) + h(n).
+The search runs standard A\* with a min-heap on f(n) = g(n) + h(n).
 
-**Cost function g(n):** Accumulated TAC comprising annualized exchanger capital using an area-based power law correlation with the Chen (1987) LMTD approximation, plus utility operating costs.
+**g(n)** is the accumulated TAC so far: annualized exchanger capital computed from area using the Chen (1987) LMTD approximation, plus utility operating costs added as each unit is placed.
 
-**Heuristic h(n):** An admissible two-component lower bound consisting of the following:
-
-- Energy-balance bound — aggregate hot and cold surplus or deficit across all remaining streams
-- Temperature-feasibility bound — portions of streams that thermodynamically must use utilities regardless of available process matches
-
-Taking the maximum of both components produces a tighter bound while preserving admissibility. A\* is therefore guaranteed to return the globally optimal network.
+**h(n)** is a two-component lower bound. The first component is an energy-balance bound on the aggregate hot and cold surplus across remaining streams. The second identifies portions of streams that thermodynamically cannot be served by process exchange and must use utilities regardless of what matches remain. The heuristic takes the maximum of both components, which keeps it tight without ever overestimating.
 
 ___
 
 ## Pruning Rules
 
+Four pruning rules keep the tree manageable:
+
 | Rule | Description |
 |---|---|
-| P1 | Skip any (Hi, Cj) pair already present in the match matrix |
-| P2 | Skip matches violating the Delta T min constraint at either end of the exchanger |
-| P3 | Offer utility actions only when a stream has no feasible process partner |
-| P4 | Anchor-hot ordering fixes the lowest-indexed unmatched hot stream per level, eliminating commutative duplicates |
+| P1 | Skip any (Hi, Cj) pair already in the match matrix |
+| P2 | Skip matches that violate Delta T min at either exchanger end |
+| P3 | Only offer utility actions when a stream has no feasible process partner |
+| P4 | Fix the lowest-indexed unmatched hot stream as the branching anchor per level, collapsing commutative orderings into one path |
+
+P4 in particular cuts the search space substantially. Without it, placing H1-C1 then H2-C2 and placing H2-C2 then H1-C1 would both be explored separately.
 
 ___
 
@@ -66,7 +65,7 @@ ___
 
 ## Benchmark Problem
 
-Classic 4H / 4C stream problem (Linnhoff and Hindmarsh, 1983).
+The test case is the 4H / 4C stream problem from Linnhoff and Hindmarsh (1983), a standard reference in heat integration literature.
 
 | Stream | Type | T_in (C) | T_out (C) | FCp (kW/C) | Duty (kW) |
 |---|---|---|---|---|---|
@@ -102,27 +101,20 @@ ___
 
 ## Installation and Usage
 
-**Requirements:** Python 3.9 or above.
+Requires Python 3.9 or above.
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Run the solver
 python main.py
 ```
 
-On Windows, double-clicking `run.bat` will handle dependency installation and execution automatically.
+On Windows, double-clicking `run.bat` handles both steps.
 
 ___
 
 ## Output
 
-The solver produces the following:
-
-**Console output** includes the full stream data table, cost parameters, an A\* progress log showing nodes expanded along with f and g values and remaining duties, the optimal network match matrix, a per-exchanger breakdown of duty and annualized cost, utility unit costs, the Total Annualized Cost, search statistics covering nodes expanded and tree depth and elapsed time, and a tree level breakdown histogram.
-
-**Graphical output** consists of three plots. The first is a Matrix Grid Diagram showing the 2D match matrix with exchanger duties and utility nodes. The second is an A\* Decision Tree Path plot showing f(n), g(n), and h(n) per tree level alongside energy draw-down. The third is an Energy Balance chart showing each stream's duty coverage split between process heat exchange and external utilities.
+Running `main.py` prints the stream table, A\* progress (nodes expanded, f and g values, remaining duties), the final match matrix, per-exchanger costs, utility costs, and search statistics. It then opens three matplotlib figures: a matrix grid showing which streams are matched and at what duty, a plot of f(n), g(n), and h(n) along the solution path, and an energy balance chart comparing process recovery against utility use per stream.
 
 ___
 
