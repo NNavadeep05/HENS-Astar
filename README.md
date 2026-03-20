@@ -4,7 +4,7 @@
 
 ___
 
-## What This Is
+## Description
 
 HENS is a classic process engineering problem: given a set of hot and cold streams, find the cheapest network of heat exchangers that brings each stream to its target temperature. The hard part is that the number of possible networks grows fast, and most formulations end up either brute-forcing it or relying on heuristics that do not guarantee optimality.
 
