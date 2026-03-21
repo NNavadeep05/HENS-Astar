@@ -1,12 +1,14 @@
 """
-visualization.py  (v2 — Matrix-Based Decision Tree Visualization)
-==================================================================
-Three plots aligned to the decision-tree framing:
+visualization.py  (v3 — Matrix-Based Decision Tree Visualization + Composite Curves)
+=====================================================================================
+Four plots aligned to the decision-tree framing:
 
   1. MATRIX GRID DIAGRAM  — shows the 2D match matrix (Hi × Cj)
                            with match order, duties, and utility nodes
   2. A* DECISION TREE PATH — f/g/h per tree level + energy drawdown
   3. ENERGY BEFORE vs AFTER — grouped bar chart of stream duties
+  4. T-H COMPOSITE CURVES  — hot/cold composite curves with pinch annotation,
+                              QHmin and QCmin shading
 
 Authors : Navadeep Nandedapu, Raghu Perala, Vivekadithya Yayavaram, Daivamsh Atoori
 Course  : Classical AI
@@ -358,6 +360,250 @@ def plot_energy_before_after(
 
 
 # ===========================================================================
+# 4. T-H COMPOSITE CURVES  (Pinch analysis visualization)
+# ===========================================================================
+
+def _build_curve_points(
+    segments: List,   # list of (T_high, T_low, FCp)
+) -> List:
+    """
+    Build composite curve as list of (H_cumulative, T) points.
+    Sweeps from highest T to lowest T.
+    """
+    if not segments:
+        return []
+
+    temps = set()
+    for T_high, T_low, _ in segments:
+        temps.add(T_high)
+        temps.add(T_low)
+    temps_sorted = sorted(temps, reverse=True)
+
+    points = []
+    H = 0.0
+    points.append((H, temps_sorted[0]))
+
+    for i in range(len(temps_sorted) - 1):
+        T_top = temps_sorted[i]
+        T_bot = temps_sorted[i + 1]
+        dT = T_top - T_bot
+
+        FCp_sum = sum(
+            fcp for (th, tl, fcp) in segments
+            if th >= T_top - 1e-9 and tl <= T_bot + 1e-9
+        )
+        H += FCp_sum * dT
+        points.append((H, T_bot))
+
+    return points  # (H, T) from high-T to low-T
+
+
+def plot_composite_curves(
+    goal_state,
+    hot_streams:  Dict[str, "HotStream"],
+    cold_streams: Dict[str, "ColdStream"],
+    delta_T_min:  float = 10.0,
+    title: str = "Temperature-Enthalpy Composite Curves",
+) -> plt.Figure:
+    """
+    Build and plot the T-H composite curves for all streams,
+    with pinch point annotation and QHmin / QCmin shading.
+
+    Algorithm:
+    1. Build hot composite: segments (T_in, T_out, FCp) for each hot stream,
+       sweep temperature breakpoints from high to low, accumulate enthalpy.
+    2. Build cold composite the same way, then shift the cold curve
+       horizontally (right) so the minimum vertical gap to the hot
+       curve equals delta_T_min — this gives the utility targets.
+    3. The pinch is the temperature where minimum vertical gap occurs.
+    4. QHmin = gap at low-enthalpy end of cold curve (steam needed);
+       QCmin = gap at high-enthalpy end of hot curve (cooling needed).
+    """
+    # --- Build hot segments -------------------------------------------------
+    hot_segs = []
+    for h in hot_streams.values():
+        hot_segs.append((h.T_in, h.T_out, h.FCp))
+
+    # --- Build cold segments ------------------------------------------------
+    cold_segs = []
+    for c in cold_streams.values():
+        cold_segs.append((c.T_out, c.T_in, c.FCp))  # (T_high, T_low, FCp)
+
+    hot_pts  = _build_curve_points(hot_segs)   # (H, T) high→low T
+    cold_pts = _build_curve_points(cold_segs)  # (H, T) high→low T
+
+    if not hot_pts or not cold_pts:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.text(0.5, 0.5, "Insufficient data for composite curves",
+                ha="center", va="center", transform=ax.transAxes)
+        return fig
+
+    # Reverse to ascending T for plotting (low T → high T)
+    hot_plot  = list(reversed(hot_pts))   # (H, T) ascending T
+    cold_plot = list(reversed(cold_pts))  # (H, T) ascending T
+
+    hot_total  = hot_pts[-1][0]
+    cold_total = cold_pts[-1][0]
+
+    # --- Shift cold curve horizontally to enforce ΔTmin --------------------
+    # The cold curve is shifted RIGHT by an offset so that the minimum vertical
+    # temperature gap (hot T - cold T at same H) equals delta_T_min.
+    # We bisect over the horizontal shift.
+    #
+    # For a given shift S, the cold curve becomes (H + S, T).
+    # We interpolate T at common H values and find the minimum gap.
+
+    def min_vertical_gap(shift: float) -> float:
+        """Minimum (hot_T - cold_T) evaluated at H-breakpoints."""
+        # Collect all H breakpoints
+        h_vals_hot  = [p[0] for p in hot_plot]
+        h_vals_cold = [p[0] + shift for p in cold_plot]
+
+        all_H = sorted(set(h_vals_hot + h_vals_cold))
+        # Restrict to overlap region
+        H_start = max(min(h_vals_hot), min(h_vals_cold))
+        H_end   = min(max(h_vals_hot), max(h_vals_cold))
+
+        if H_end <= H_start:
+            return float("inf")   # no overlap
+
+        gaps = []
+        for H in all_H:
+            if H < H_start - 1e-6 or H > H_end + 1e-6:
+                continue
+            T_hot  = _interp_T(hot_plot,  H)
+            T_cold = _interp_T([(p[0] + shift, p[1]) for p in cold_plot], H)
+            if T_hot is not None and T_cold is not None:
+                gaps.append(T_hot - T_cold)
+
+        return min(gaps) if gaps else float("inf")
+
+    def _interp_T(pts, H_query):
+        """Linearly interpolate T at H_query from list of (H, T) ascending H."""
+        if not pts:
+            return None
+        H_arr = [p[0] for p in pts]
+        T_arr = [p[1] for p in pts]
+        if H_query < H_arr[0] or H_query > H_arr[-1]:
+            return None
+        for k in range(len(pts) - 1):
+            H_lo, H_hi = H_arr[k], H_arr[k + 1]
+            if H_lo <= H_query <= H_hi:
+                if abs(H_hi - H_lo) < 1e-9:
+                    return T_arr[k]
+                frac = (H_query - H_lo) / (H_hi - H_lo)
+                return T_arr[k] + frac * (T_arr[k + 1] - T_arr[k])
+        return None
+
+    # Bisect to find the shift that gives minimum gap = delta_T_min
+    lo, hi_shift = 0.0, cold_total + hot_total
+    for _ in range(60):
+        mid = (lo + hi_shift) / 2.0
+        gap = min_vertical_gap(mid)
+        if gap < delta_T_min:
+            lo = mid
+        else:
+            hi_shift = mid
+    best_shift = (lo + hi_shift) / 2.0
+
+    # Compute QHmin and QCmin from the shift
+    # QHmin = steam needed to push cold curve start to meet hot curve
+    #       = cold_total - hot_total + shift  (energy balance after shift)
+    # QCmin = cooling needed for hot surplus
+    QHmin = max(0.0, cold_total + best_shift - hot_total)
+    QCmin = max(0.0, hot_total - cold_total - best_shift)
+
+    # Build shifted cold curve for plotting
+    cold_shifted = [(p[0] + best_shift, p[1]) for p in cold_plot]  # (H, T)
+
+    # --- Find pinch temperature (minimum gap location) ----------------------
+    pinch_H   = 0.0
+    pinch_T   = 0.0
+    min_gap_seen = float("inf")
+
+    all_H_pts = sorted(set(
+        [p[0] for p in hot_plot] +
+        [p[0] for p in cold_shifted]
+    ))
+    H_start_ov = max(hot_plot[0][0],  cold_shifted[0][0])
+    H_end_ov   = min(hot_plot[-1][0], cold_shifted[-1][0])
+
+    for H in all_H_pts:
+        if H < H_start_ov - 1e-6 or H > H_end_ov + 1e-6:
+            continue
+        T_hot  = _interp_T(hot_plot,      H)
+        T_cold = _interp_T(cold_shifted,  H)
+        if T_hot is not None and T_cold is not None:
+            gap = T_hot - T_cold
+            if gap < min_gap_seen:
+                min_gap_seen = gap
+                pinch_H = H
+                pinch_T = T_hot
+
+    # --- Plot ----------------------------------------------------------------
+    fig, ax = plt.subplots(figsize=(12, 7))
+    fig.patch.set_facecolor(BG_COLOR)
+    ax.set_facecolor(BG_COLOR)
+
+    # Hot composite curve
+    hot_H = [p[0] for p in hot_plot]
+    hot_T = [p[1] for p in hot_plot]
+    ax.plot(hot_H, hot_T, color=HOT_COLOR, lw=2.5, label="Hot Composite", zorder=3)
+
+    # Cold composite curve (shifted)
+    col_H = [p[0] for p in cold_shifted]
+    col_T = [p[1] for p in cold_shifted]
+    ax.plot(col_H, col_T, color=COLD_COLOR, lw=2.5, label="Cold Composite", zorder=3)
+
+    # Pinch vertical dashed line
+    ax.axvline(x=pinch_H, color="#888888", lw=1.4, linestyle="--", zorder=2)
+    ax.text(
+        pinch_H, pinch_T + 3,
+        f"Pinch\n{pinch_T:.1f}°C",
+        ha="center", va="bottom", fontsize=9, color="#444444",
+        bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.8),
+    )
+
+    # QHmin shading: steam region — left of cold start, fills gap above cold
+    if best_shift > 1e-3 and QHmin > 1e-3:
+        # Region: from H=0 to cold curve start (= best_shift), above 0
+        # Fill between x=0 and x=best_shift as a vertical band
+        cold_start_T = cold_shifted[0][1]
+        H_fill = [0.0, best_shift, best_shift, 0.0]
+        T_fill = [0.0, 0.0, cold_start_T, cold_start_T]
+        ax.fill(H_fill, T_fill, color="orange", alpha=0.18, zorder=1,
+                label=f"QHmin = {QHmin:.1f} kW")
+
+    # QCmin shading: cooling region — right of hot curve end
+    if QCmin > 1e-3:
+        hot_end_H = hot_H[-1]
+        cold_end_H = col_H[-1]
+        hot_end_T  = hot_T[-1]
+        H_fill = [hot_end_H, max(hot_end_H, cold_end_H),
+                  max(hot_end_H, cold_end_H), hot_end_H]
+        T_fill = [0.0, 0.0, hot_end_T, hot_end_T]
+        ax.fill(H_fill, T_fill, color="cyan", alpha=0.18, zorder=1,
+                label=f"QCmin = {QCmin:.1f} kW")
+
+    ax.set_xlabel("Enthalpy H (kW)", fontsize=11)
+    ax.set_ylabel("Temperature T (°C)", fontsize=11)
+    ax.set_title(title, fontsize=13, fontweight="bold")
+    ax.legend(fontsize=9, loc="upper left")
+    ax.grid(True, alpha=0.25)
+
+    # Annotation box with ΔTmin
+    ax.text(
+        0.97, 0.05,
+        f"ΔTmin = {delta_T_min:.0f}°C\nQHmin = {QHmin:.1f} kW\nQCmin = {QCmin:.1f} kW",
+        transform=ax.transAxes, ha="right", va="bottom", fontsize=9,
+        bbox=dict(boxstyle="round,pad=0.4", fc="white", alpha=0.85, ec=GRID_COLOR),
+    )
+
+    plt.tight_layout()
+    return fig
+
+
+# ===========================================================================
 # Master entry point
 # ===========================================================================
 
@@ -367,7 +613,7 @@ def visualize_all(
     cold_streams: Dict[str, "ColdStream"],
     delta_T_min:  float,
 ) -> None:
-    """Generate and show all three visualization figures."""
+    """Generate and show all four visualization figures."""
     if not result.success:
         print("  No solution to visualize.")
         return
@@ -376,5 +622,6 @@ def visualize_all(
     fig1 = plot_matrix_network(result.goal_state, hot_streams, cold_streams)
     fig2 = plot_search_progress(result.path)
     fig3 = plot_energy_before_after(result.goal_state, hot_streams, cold_streams)
+    fig4 = plot_composite_curves(result.goal_state, hot_streams, cold_streams, delta_T_min)
     plt.show()
     print("  Plots displayed. Close windows to exit.")
