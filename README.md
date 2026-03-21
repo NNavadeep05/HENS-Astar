@@ -32,7 +32,11 @@ The search runs standard A\* with a min-heap on f(n) = g(n) + h(n).
 
 **g(n)** is the accumulated TAC so far: annualized exchanger capital computed from area using the Chen (1987) LMTD approximation, plus utility operating costs added as each unit is placed.
 
-**h(n)** is a two-component lower bound. The first component is an energy-balance bound on the aggregate hot and cold surplus across remaining streams. The second identifies portions of streams that thermodynamically cannot be served by process exchange and must use utilities regardless of what matches remain. The heuristic takes the maximum of both components, which keeps it tight without ever overestimating.
+**h(n)** is a three-component lower bound (v3 Heuristic). 
+1. **Component A:** An energy-balance bound on the aggregate hot and cold surplus across remaining streams. 
+2. **Component B:** A temperature-feasibility bound tracking portions of streams that thermodynamically cannot be served by process exchange and must use utilities regardless of what matches remain. 
+3. **Component C:** A pinch point composite curve analysis that calculates the strict minimum heating (QHmin) and cooling (QCmin) duties from the remaining stream segments.
+The heuristic takes the maximum of all three components, keeping it tight without ever overestimating.
 
 ___
 
@@ -63,22 +67,14 @@ Unit penalty  =  5000  $ per exchanger
 
 ___
 
-## Benchmark Problem
+## Benchmark Problems
 
-The test case is the 4H / 4C stream problem from Linnhoff and Hindmarsh (1983), a standard reference in heat integration literature.
+The project evaluates two test cases sequentially:
 
-| Stream | Type | T_in (C) | T_out (C) | FCp (kW/C) | Duty (kW) |
-|---|---|---|---|---|---|
-| H1 | Hot | 200 | 80 | 2.0 | 240 |
-| H2 | Hot | 150 | 50 | 4.0 | 400 |
-| H3 | Hot | 180 | 60 | 3.0 | 360 |
-| H4 | Hot | 130 | 40 | 2.5 | 225 |
-| C1 | Cold | 30 | 120 | 3.0 | 270 |
-| C2 | Cold | 40 | 130 | 2.5 | 225 |
-| C3 | Cold | 50 | 160 | 2.0 | 220 |
-| C4 | Cold | 20 | 100 | 4.0 | 320 |
+1. **4H/4C Linnhoff Benchmark**: The classic problem from Linnhoff and Hindmarsh (1983), a standard reference in heat integration literature.
+2. **8H/8C Synthetic Benchmark**: A larger, 16-stream scalable problem to dynamically test the A* decision-tree's efficiency on broader matrices.
 
-Delta T min: 10 C
+Delta T min: 10 °C
 
 ___
 
@@ -86,14 +82,15 @@ ___
 
 ```
 .
-├── main.py            Entry point — problem data, A* call, results output
+├── main.py            Entry point — runs the dual-benchmarks, problem data, outputs scalability table
 ├── state.py           HENSState and NetworkMatrix — search node representation
 ├── astar.py           A* engine — priority queue, visited set, goal test
 ├── actions.py         Successor generator — MATCH, ADD_HEATER, ADD_COOLER
 ├── constraints.py     Thermodynamic feasibility — Delta T min checks
-├── heuristic.py       Admissible two-component heuristic
+├── heuristic.py       Admissible v3 heuristic with pinch point composite curve analysis
 ├── cost.py            TAC model — area, LMTD, capital, utility costs
-├── visualization.py   Three matplotlib figures — matrix grid, search path, energy balance
+├── visualization.py   Four matplotlib figures — matrix grid, search path, energy balance, composite plot
+├── CONCEPTS.md        Detailed glossary of all 26 thermodynamic and AI concepts
 └── requirements.txt   Dependencies
 ```
 
@@ -114,7 +111,13 @@ ___
 
 ## Output
 
-Running `main.py` prints the stream table, A\* progress (nodes expanded, f and g values, remaining duties), the final match matrix, per-exchanger costs, utility costs, and search statistics. It then opens three matplotlib figures: a matrix grid showing which streams are matched and at what duty, a plot of f(n), g(n), and h(n) along the solution path, and an energy balance chart comparing process recovery against utility use per stream.
+Running `main.py` solves both problems sequentially. It prints the stream table, A\* progress (nodes expanded, f and g values, remaining duties), the final match matrix, per-exchanger costs, utility costs, search statistics, and a scalability comparison table. 
+
+It then opens four matplotlib figures:
+1. A matrix grid showing which streams are matched and at what duty.
+2. A plot of f(n), g(n), and h(n) along the solution path.
+3. An energy balance chart comparing process recovery against utility use per stream.
+4. T-H composite curves showing the shaded pinch point, hot and cold composite curves, and bounded QHmin and QCmin utility targets.
 
 ___
 

@@ -1,12 +1,15 @@
 # Results — HENS-Astar
 
-**Problem:** Linnhoff and Hindmarsh (1983) benchmark, 4 hot streams and 4 cold streams  
 **Algorithm:** A* Decision-Tree Search  
 **Delta T min:** 10 °C
 
+The script now runs two sequential problems to demonstrate the algorithm's optimality and scalability: the classic **4H/4C Linnhoff Benchmark** and an **8H/8C Synthetic Benchmark**.
+
 ___
 
-## Stream Data
+## 4H/4C Linnhoff Benchmark
+
+### Stream Data
 
 | Stream | Type | T_in (°C) | T_out (°C) | FCp (kW/°C) | Duty (kW) |
 |---|---|---|---|---|---|
@@ -25,9 +28,9 @@ Surplus hot duty (must be rejected via cooling water): 190.0 kW
 
 ___
 
-## Optimal Network
+### Optimal Network
 
-### Match Matrix
+#### Match Matrix
 
 Rows are cold streams, columns are hot streams. Numbers show the order in which exchangers were placed.
 
@@ -39,7 +42,7 @@ Rows are cold streams, columns are hot streams. Numbers show the order in which 
   C4         .      [4]      .      [6]
 ```
 
-### Process Heat Exchangers
+#### Process Heat Exchangers
 
 | Unit | Hot | Cold | Duty (kW) | Annualized Cost ($/yr) |
 |---|---|---|---|---|
@@ -50,7 +53,7 @@ Rows are cold streams, columns are hot streams. Numbers show the order in which 
 | HX5 | H3 | C1 | 270.0 | 8,364 |
 | HX6 | H4 | C4 | 125.0 | 8,204 |
 
-### Utility Units
+#### Utility Units
 
 No steam heating was required. H3 and H4 both have target temperatures low enough that cooling water handles the remainder after process exchange.
 
@@ -61,7 +64,7 @@ No steam heating was required. H3 and H4 both have target temperatures low enoug
 
 ___
 
-## Cost Summary
+### Cost Summary
 
 | Component | Cost ($/yr) |
 |---|---|
@@ -71,7 +74,7 @@ ___
 
 ___
 
-## Search Performance
+### Search Performance
 
 | Metric | Value |
 |---|---|
@@ -79,9 +82,9 @@ ___
 | Nodes generated | 599 |
 | Maximum tree depth reached | 6 |
 | Solution depth | 6 |
-| Time elapsed | 0.022 seconds |
+| Time elapsed | ~0.02 seconds |
 
-### Tree Level Breakdown
+#### Tree Level Breakdown
 
 | Level | Nodes Expanded |
 |---|---|
@@ -97,7 +100,7 @@ Branching peaks at levels 3 and 4 where stream loads are partially satisfied and
 
 ___
 
-## Energy Balance
+### Energy Balance
 
 All streams reached their target temperatures within the 0.5 kW tolerance.
 
@@ -114,8 +117,18 @@ All streams reached their target temperatures within the 0.5 kW tolerance.
 
 ___
 
+## 8H/8C Synthetic Benchmark & Scalability
+
+The project now dynamically runs a double-sized variant directly after the 4H/4C problem. The **8H/8C Synthetic Benchmark** contains 16 streams and 64 total pairs, pushing the combinatorial branching factor significantly higher. 
+
+To offset the exponentially expanded search matrix, the solver relies on the combined strength of the **P4 Anchor-Hot pruning** rule and the newly added **v3 primary admissible heuristic**—which integrates pinch-point composite curve limits (QHmin and QCmin) to prune suboptimal paths early. 
+
+The console execution concludes with a **Scalability Comparison** table, summarizing and comparing both dimensions directly, highlighting metrics such as the node expansion growth vs the network complexity, runtime (seconds), and final TAC.
+
+___
+
 ## Notes
 
 The network recovers heat between H1 and C3/C2, H2 and C2/C4, H3 and C1, and H4 and C4. No cold stream required steam because the total hot duty exceeds total cold duty by 190 kW, leaving enough process heat available for all cold targets.
 
-The search found the optimal solution in 235 node expansions and 22 milliseconds. For context, a naive search without the anchor-hot pruning rule (P4) would explore the same network under multiple placement orderings, roughly multiplying the search space by the factorial of the number of exchangers placed.
+The search found the optimal solution for 4H/4C in 235 node expansions and milliseconds of computation. For context, a naive search without the anchor-hot pruning rule (P4) or the v3 pinch heuristic would explore the same network under exponentially more placement orderings and sub-optimal partial states.
