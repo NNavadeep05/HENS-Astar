@@ -165,6 +165,3 @@ ___
 
 ___
 
-### 26. Scalability
-
-The 4H/4C benchmark has at most 16 possible stream pairs. The Pho and Lapidus 5H/5C benchmark has 25. Search space grows combinatorially; more streams means wider branching and potentially more levels. The scalability comparison in the output shows nodes expanded, time, and TAC across both problems, demonstrating how far the v3 heuristic and pruning rules extend the reach of A*.
