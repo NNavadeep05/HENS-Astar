@@ -143,9 +143,13 @@ ___
 
 ## Authors
 
-Navadeep Nandedapu, Raghu Perala, Vivekadithya Yayavaram, Daivamsh Atoori
+Navadeep Nandedapu (23ME10054)  
+Raghu Perala (23ME10064)  
+Yayavaram Vivekadithya (23ME3EP10)  
+Atoori Daivamsh (23CH30008)
 
-Course: Classical AI
+**Indian Institute of Technology Kharagpur**  
+Course: Artificial Intelligence Foundations and Applications
 
 ___
 
