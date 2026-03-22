@@ -4,11 +4,13 @@
 
 ___
 
-## Description
+## What This Is
 
-HENS is a classic process engineering problem: given a set of hot and cold streams, find the cheapest network of heat exchangers that brings each stream to its target temperature. The hard part is that the number of possible networks grows fast, and most formulations end up either brute-forcing it or relying on heuristics that do not guarantee optimality.
+A process plant has streams that need heating and streams that need cooling. The naive approach runs everything through steam and cooling water. The smarter approach transfers heat directly between process streams through heat exchangers, using external utilities only for what process exchange cannot cover. Deciding which streams to pair, in what order, and at what duties to minimize total annual cost is the HENS problem. The number of possible networks grows combinatorially, so you need a search algorithm.
 
-This project uses A\* search on a decision tree, where each node represents a partial network and each branch adds one exchanger. Because the heuristic is admissible, the first complete solution A\* finds is guaranteed to be optimal.
+This project solves HENS using **A\* search on a decision tree**. Each node is a partial network. Each branch places one heat exchanger. The heuristic is admissible, so the first complete solution A\* returns is the **guaranteed optimal network**.
+
+The benchmark is the **Pho and Lapidus (1973) 10SP1 problem** — 5 hot and 5 cold streams — which they could not solve optimally by direct enumeration in 1973. This implementation finds the guaranteed optimal in **745 node expansions and under 0.15 seconds**.
 
 ___
 
@@ -17,41 +19,39 @@ ___
 | Element | Description |
 |---|---|
 | Root node | Empty network, no matches placed |
-| Tree level k | k process heat exchangers placed so far |
+| Tree level k | k process heat exchangers placed |
 | Branch action | Place one feasible (Hi, Cj) match |
 | Goal | All stream duties satisfied within tolerance |
-| Objective | Minimize Total Annualized Cost (TAC) |
-
-At each level, the branching is constrained by the Delta T min condition and a canonical ordering rule that prevents the same network from being explored twice under different placement sequences.
+| Objective | Minimize **Total Annualized Cost (TAC)** |
 
 ___
 
 ## Algorithm
 
-The search runs standard A\* with a min-heap on f(n) = g(n) + h(n).
+**f(n) = g(n) + h(n)**
 
-**g(n)** is the accumulated TAC so far: annualized exchanger capital computed from area using the Chen (1987) LMTD approximation, plus utility operating costs added as each unit is placed.
+**g(n)** is the exact TAC accumulated so far: annualized exchanger capital using the Chen (1987) LMTD approximation, plus utility costs added as each unit is placed.
 
-**h(n)** is a three-component lower bound (v3 Heuristic). 
-1. **Component A:** An energy-balance bound on the aggregate hot and cold surplus across remaining streams. 
-2. **Component B:** A temperature-feasibility bound tracking portions of streams that thermodynamically cannot be served by process exchange and must use utilities regardless of what matches remain. 
-3. **Component C:** A pinch point composite curve analysis that calculates the strict minimum heating (QHmin) and cooling (QCmin) duties from the remaining stream segments.
-The heuristic takes the maximum of all three components, keeping it tight without ever overestimating.
+**h(n)** is the v3 admissible heuristic with three components, each a lower bound on remaining cost:
+
+- **Component A** — aggregate energy balance between remaining hot and cold duties
+- **Component B** — per-stream temperature obligations forced by the Delta T min constraint
+- **Component C** — pinch composite curve analysis computing **QHmin** and **QCmin** from remaining stream segments
+
+The heuristic takes the maximum of all three. It never overestimates, so A\* optimality is guaranteed.
 
 ___
 
 ## Pruning Rules
 
-Four pruning rules keep the tree manageable:
-
 | Rule | Description |
 |---|---|
-| P1 | Skip any (Hi, Cj) pair already in the match matrix |
-| P2 | Skip matches that violate Delta T min at either exchanger end |
-| P3 | Only offer utility actions when a stream has no feasible process partner |
-| P4 | Fix the lowest-indexed unmatched hot stream as the branching anchor per level, collapsing commutative orderings into one path |
+| **P1** | Skip any (Hi, Cj) pair already in the match matrix |
+| **P2** | Skip matches that violate Delta T min at either exchanger end |
+| **P3** | Offer utility actions only when a stream has no feasible process partner |
+| **P4** | **Anchor-hot rule** — fix the lowest-indexed unmatched hot stream as the branching point per level, collapsing all commutative orderings into one path |
 
-P4 in particular cuts the search space substantially. Without it, placing H1-C1 then H2-C2 and placing H2-C2 then H1-C1 would both be explored separately.
+P4 is the most impactful. Without it, placing H1-C1 then H2-C2 and placing H2-C2 then H1-C1 would both be explored as separate branches despite producing the same network.
 
 ___
 
@@ -60,21 +60,10 @@ ___
 ```
 Capital cost  =  (8000 + 1200 x Area^0.6)  x  annualisation factor (25%)
 Area          =  Q / (U x dT_lm)            [Chen 1987 approximation]
-Steam cost    =  160  $/kW.yr
+Steam         =  160  $/kW.yr
 Cooling water =   60  $/kW.yr
 Unit penalty  =  5000  $ per exchanger
 ```
-
-___
-
-## Benchmark Problems
-
-The project evaluates two test cases sequentially:
-
-1. **4H/4C Linnhoff Benchmark**: The classic problem from Linnhoff and Hindmarsh (1983), a standard reference in heat integration literature.
-2. **8H/8C Synthetic Benchmark**: A larger, 16-stream scalable problem to dynamically test the A* decision-tree's efficiency on broader matrices.
-
-Delta T min: 10 °C
 
 ___
 
@@ -82,42 +71,73 @@ ___
 
 ```
 .
-├── main.py            Entry point — runs the dual-benchmarks, problem data, outputs scalability table
-├── state.py           HENSState and NetworkMatrix — search node representation
-├── astar.py           A* engine — priority queue, visited set, goal test
-├── actions.py         Successor generator — MATCH, ADD_HEATER, ADD_COOLER
-├── constraints.py     Thermodynamic feasibility — Delta T min checks
-├── heuristic.py       Admissible v3 heuristic with pinch point composite curve analysis
-├── cost.py            TAC model — area, LMTD, capital, utility costs
-├── visualization.py   Four matplotlib figures — matrix grid, search path, energy balance, composite plot
-├── CONCEPTS.md        Detailed glossary of all 26 thermodynamic and AI concepts
-└── requirements.txt   Dependencies
+├── main.py            Entry point. Defines the 5H/5C stream data,
+│                      runs the solver, and prints full results.
+│
+├── state.py           HENSState and NetworkMatrix. The search node
+│                      stores the match matrix, remaining duties,
+│                      placed exchangers, tree level, and g cost.
+│
+├── astar.py           A* engine. Min-heap priority queue on f(n),
+│                      visited set for duplicate detection, verbose
+│                      progress logging, and path reconstruction.
+│
+├── actions.py         Successor generator. Three action types:
+│                      MATCH, ADD_HEATER, ADD_COOLER. Enforces
+│                      pruning rules P1 through P4.
+│
+├── constraints.py     Thermodynamic feasibility. Checks Delta T min
+│                      at both exchanger ends and tracks current
+│                      stream temperatures from remaining loads.
+│
+├── heuristic.py       Admissible v3 heuristic. Components A, B, and C
+│                      as described above. Also builds composite curves
+│                      shared with the visualization module.
+│
+├── cost.py            TAC model. Chen LMTD, area calculation, power-law
+│                      capital cost, utility rates, and incremental
+│                      g cost computation per action.
+│
+├── visualization.py   Four matplotlib figures on a dark precision theme:
+│                      network matrix grid, A* search path, stream energy
+│                      balance, and T-H composite curves with pinch annotation.
+│
+├── CONCEPTS.md        Plain-language explanations of all 26 concepts used,
+│                      covering both heat transfer and AI/search theory.
+│
+├── Results.md         Full numerical results with plots embedded.
+│
+├── requirements.txt   Dependencies (matplotlib only).
+├── run.bat            One-click launcher for Windows.
+└── run.sh             One-click launcher for Mac and Linux.
 ```
 
 ___
 
 ## Installation and Usage
 
-Requires Python 3.9 or above.
+Requires **Python 3.9** or above.
 
 ```bash
 pip install -r requirements.txt
 python main.py
 ```
 
-On Windows, double-clicking `run.bat` handles both steps.
+On **Windows**, double-click `run.bat`.  
+On **Mac or Linux**, run `bash run.sh`.
 
 ___
 
 ## Output
 
-Running `main.py` solves both problems sequentially. It prints the stream table, A\* progress (nodes expanded, f and g values, remaining duties), the final match matrix, per-exchanger costs, utility costs, search statistics, and a scalability comparison table. 
+The solver prints the stream table, A\* search progress, the optimal match matrix, per-exchanger costs, utility costs, and search statistics.
 
-It then opens four matplotlib figures:
-1. A matrix grid showing which streams are matched and at what duty.
-2. A plot of f(n), g(n), and h(n) along the solution path.
-3. An energy balance chart comparing process recovery against utility use per stream.
-4. T-H composite curves showing the shaded pinch point, hot and cold composite curves, and bounded QHmin and QCmin utility targets.
+Four figures are generated:
+
+1. **Matrix Grid** — 2D network topology with exchanger duties and utility annotations
+2. **A\* Search Path** — f(n), g(n), and h(n) per tree level alongside duty draw-down
+3. **Energy Balance** — process HX coverage vs utility use per stream
+4. **T-H Composite Curves** — pinch point, QHmin and QCmin shading, hot and cold composites
 
 ___
 
@@ -131,6 +151,10 @@ ___
 
 ## References
 
+Pho, T.K. and Lapidus, L. (1973). Topics in computer-aided design: Part II. Synthesis of optimal heat exchanger networks by tree searching algorithms. *AIChE Journal*, 19(6), 1182-1189.
+
 Linnhoff, B. and Hindmarsh, E. (1983). The pinch design method for heat exchanger networks. *Chemical Engineering Science*, 38(5), 745-763.
 
 Chen, J.J.J. (1987). Comments on improvements on a replacement for the logarithmic mean. *Chemical Engineering Science*, 42(10), 2488-2489.
+
+Hart, P.E., Nilsson, N.J. and Raphael, B. (1968). A formal basis for the heuristic determination of minimum cost paths. *IEEE Transactions on Systems Science and Cybernetics*, 4(2), 100-107.
