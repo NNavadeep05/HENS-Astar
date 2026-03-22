@@ -1,7 +1,6 @@
 # CONCEPTS
 
-Every concept used in HENS-Astar is explained here. If you know heat transfer but not AI, start from section 12. If you know AI but not heat transfer, start from section 1.
-
+All concepts used in HENS-Astar are briefly explained here. 
 ___
 
 ## **HEAT TRANSFER CONCEPTS**
@@ -10,7 +9,7 @@ ___
 
 ### 1. Heat Exchanger Network Synthesis (HENS)
 
-A process plant has streams that need heating and streams that need cooling. Running everything through steam and cooling water works but costs a lot. A cheaper option is to transfer heat directly between process streams through heat exchangers. HENS is the problem of deciding which streams to pair, in what order, and at what duties, to minimize total annual cost. The number of possible network configurations grows combinatorially with stream count, which is why a search algorithm is needed.
+A process plant has streams that need heating and streams that need cooling. Running everything through steam and cooling water works, but costs a lot. A cheaper option is to transfer heat directly between process streams through heat exchangers. HENS is the problem of deciding which streams to pair, in what order, and at what duties, to minimize total annual cost. The number of possible network configurations grows combinatorially with stream count, which is why a search algorithm is needed.
 
 ___
 
@@ -28,7 +27,7 @@ ___
 
 ### 4. Total Annualized Cost (TAC)
 
-TAC is what A* minimizes. It combines capital and operating cost into one annual figure. Capital cost covers buying and installing heat exchangers, spread over the equipment lifetime using an annualization factor. Operating cost covers steam and cooling water consumed each year. TAC equals annualized exchanger costs plus a fixed penalty per unit plus annual utility bills.
+TAC is what A* minimizes. It combines capital and operating cost into one annual figure. Capital cost covers buying and installing heat exchangers, spread over the equipment lifetime using an annualization factor. Operating cost covers steam and cooling water consumed each year. TAC equals annualized exchange costs plus a fixed penalty per unit plus annual utility bills.
 
 ___
 
@@ -58,7 +57,7 @@ ___
 
 ### 9. Pinch Point and Composite Curves
 
-The hot composite curve stacks all hot stream heat content over shared temperature intervals into a single temperature-enthalpy curve. The cold composite is built the same way. When both are plotted together with the cold curve shifted to maintain the minimum temperature approach, the closest point between them is the **pinch**. At the pinch there is no remaining driving force, and the network splits into two thermodynamically independent regions.
+The hot composite curve stacks all hot stream heat content over shared temperature intervals into a single temperature-enthalpy curve. The cold composite is built the same way. When both are plotted together with the cold curve shifted to maintain the minimum temperature approach, the closest point between them is the **pinch**. At the pinch, there is no remaining driving force, and the network splits into two thermodynamically independent regions.
 
 ___
 
@@ -70,7 +69,7 @@ ___
 
 ### 11. Energy Balance and Feasibility
 
-Across the whole network, heat in must equal heat out. At each individual exchanger, the hot stream must stay above the cold stream by at least Delta T min throughout. A state is declared a goal when every stream has its duty satisfied within 0.5 kW tolerance.
+Across the whole network, heat in must equal heat out. At each exchanger, the hot stream must stay above the cold stream by at least Delta T min throughout. A state is declared a goal when every stream has its duty satisfied within 0.5 kW tolerance.
 
 ___
 
@@ -80,7 +79,7 @@ ___
 
 ### 12. State Space Search
 
-State space search finds solutions by exploring configurations. A state captures the full situation at one point, here a partial network. Starting from an empty network, the algorithm generates new states by placing heat exchangers one at a time until all streams are satisfied. The challenge is that the number of states is large, so the search needs guidance.
+State space search finds solutions by exploring configurations. A state captures the full situation at one point; here, a partial network. Starting from an empty network, the algorithm generates new states by placing heat exchangers one at a time until all streams are satisfied. The challenge is that the number of states is large, so the search needs guidance.
 
 ___
 
@@ -92,7 +91,7 @@ ___
 
 ### 14. A* Search Algorithm
 
-**A*** always expands the node with the lowest f(n) = g(n) + h(n). It uses a priority queue so the most promising node is always processed next, and a visited set to prevent re-expanding the same state twice. If the heuristic is admissible, the first goal node A* expands is guaranteed to be optimal. That guarantee is why A* is used here instead of simpler search methods.
+**A*** always expands the node with the lowest f(n) = g(n) + h(n). It uses a priority queue so the most promising node is always processed next, and a visited set to prevent re-expanding the same state twice. If the heuristic is admissible, the first goal node A* expanded is guaranteed to be optimal. That guarantee is why A* is used here instead of simpler search methods.
 
 ___
 
@@ -104,7 +103,7 @@ ___
 
 ### 16. h(n) - Heuristic Function
 
-**h(n)** estimates the cheapest possible way to complete the network from the current state. It must never overestimate; that is the admissibility requirement. In this project h(n) uses three components: aggregate energy balance, per-stream temperature obligations, and pinch-based composite curve analysis. All three ignore future exchanger capital costs, which makes them valid lower bounds.
+**h(n)** estimates the cheapest possible way to complete the network from the current state. It must never overestimate; that is the admissibility requirement. In this project, h(n) uses three components: aggregate energy balance, per-stream temperature obligations, and pinch-based composite curve analysis. All three ignore future exchange capital costs, which makes them valid lower bounds.
 
 ___
 
@@ -122,13 +121,13 @@ ___
 
 ### 19. Pruning
 
-Pruning cuts branches before fully exploring them. Four rules apply: pairs already in the match matrix cannot be matched again, pairs violating Delta T min are rejected immediately, the anchor-hot rule eliminates equivalent orderings, and states whose f value exceeds the best known solution are discarded. Without pruning the search is intractable beyond small problem sizes.
+Pruning cuts branches before fully exploring them. Four rules apply: pairs already in the match matrix cannot be matched again, pairs violating Delta T min are rejected immediately, the anchor-hot rule eliminates equivalent orderings, and states whose f value exceeds the best known solution are discarded. Without pruning, the search is intractable beyond small problem sizes.
 
 ___
 
 ### 20. Visited Set and Duplicate Detection
 
-The **visited set** stores the canonical key of every expanded state. When a new state is generated its key is checked; if already present the state is discarded. The key is a frozenset of match matrix entries combined with rounded remaining duties. Two states that reached the same network by different action sequences collapse into one.
+The **visited set** stores the canonical key of every expanded state. When a new state is generated, its key is checked; if already present the state is discarded. The key is a frozenset of match matrix entries combined with rounded remaining duties. Two states that reached the same network by different action sequences collapse into one.
 
 ___
 
@@ -150,7 +149,7 @@ ___
 
 ### 23. Anchor-Hot Pruning Rule (P4)
 
-Without an ordering constraint, placing H1-C1 then H2-C2 and placing H2-C2 then H1-C1 appear as separate branches even though they produce the same network. The **anchor-hot rule** fixes this: at each level only the lowest-indexed hot stream with remaining load is allowed to branch. This collapses equivalent orderings into a single path and significantly reduces nodes generated.
+Without an ordering constraint, placing H1-C1 then H2-C2 and placing H2-C2 then H1-C1 appear as separate branches even though they produce the same network. The **anchor-hot rule** fixes this: at each level, only the lowest-indexed hot stream with remaining load is allowed to branch. This collapses equivalent orderings into a single path and significantly reduces nodes generated.
 
 ___
 
@@ -162,7 +161,7 @@ ___
 
 ### 25. Tree Level and Solution Depth
 
-**Tree level** is the number of process heat exchangers placed on the path from root to the current node. The root is level zero; each exchanger placed adds one level. Solution depth is the tree level of the goal node. Optimality is defined by TAC, not depth, so a deeper solution with cheaper exchangers can beat a shallower one.
+**Tree level** is the number of process heat exchangers placed on the path from the root to the current node. The root is level zero; each exchanger placed adds one level. Solution depth is the tree level of the goal node. Optimality is defined by TAC, not depth, so a deeper solution with cheaper exchangers can beat a shallower one.
 
 ___
 
