@@ -45,7 +45,7 @@ Rows are cold streams, columns are hot streams. Numbers show the placement order
   C5        .      .     [5]     .      .
 ```
 
-![Network Match Matrix](assets/fig1_matrix.png)
+![Network Match Matrix](images/fig1_matrix.png)
 
 ### Process Heat Exchangers
 
@@ -106,7 +106,7 @@ ___
 
 Branching peaks at level 5 where stream loads are partially satisfied and the most combinations remain feasible. The collapse at levels 6 and 7 reflects streams approaching their targets with fewer viable partners remaining.
 
-![A* Decision Tree Path](assets/fig2_path.png)
+![A* Decision Tree Path](images/fig2_path.png)
 
 ___
 
@@ -127,13 +127,13 @@ All streams satisfied within 0.5 kW tolerance.
 | C4 | Satisfied |
 | C5 | Satisfied |
 
-![Stream Energy Balance](assets/fig3_energy.png)
+![Stream Energy Balance](images/fig3_energy.png)
 
 ___
 
 ## Composite Curves and Pinch Analysis
 
-![Temperature-Enthalpy Composite Curves](assets/fig4_composite.png)
+![Temperature-Enthalpy Composite Curves](images/fig4_composite.png)
 
 The composite curve plot shows the hot and cold streams combined into single curves on a temperature-enthalpy diagram. The cold curve is shifted horizontally until the minimum vertical gap equals the delta T min of 11.1°C, which defines the pinch point. QHmin and QCmin are the minimum utility targets that thermodynamics requires regardless of network configuration — any feasible network must use at least these amounts.
 
