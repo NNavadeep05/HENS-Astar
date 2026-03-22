@@ -153,6 +153,14 @@ Course: Artificial Intelligence Foundations and Applications
 
 ___
 
+## Project Deliverables
+
+All project files including the report, presentation, and proposal are available here:
+
+[Google Drive — Project Folder](https://drive.google.com/drive/folders/1qcz4D2Xnz6QGsVRfqSedNG8U6DwpPyEX?usp=sharing)
+
+___
+
 ## References
 
 Pho, T.K. and Lapidus, L. (1973). Topics in computer-aided design: Part II. Synthesis of optimal heat exchanger networks by tree searching algorithms. *AIChE Journal*, 19(6), 1182-1189.
