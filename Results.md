@@ -1,108 +1,118 @@
 # Results — HENS-Astar
 
+**Problem:** Pho and Lapidus (1973) 10SP1 benchmark, 5 hot streams and 5 cold streams  
 **Algorithm:** A* Decision-Tree Search  
-**Delta T min:** 10 °C
+**Delta T min:** 11.1 °C (20 °F converted)
 
-The script now runs two sequential problems to demonstrate the algorithm's optimality and scalability: the classic **4H/4C Linnhoff Benchmark** and an **8H/8C Synthetic Benchmark**.
+Stream data converted from BTU/hr.F and Fahrenheit. All values below are in SI units.
 
 ___
 
-## 4H/4C Linnhoff Benchmark
-
-### Stream Data
+## Stream Data
 
 | Stream | Type | T_in (°C) | T_out (°C) | FCp (kW/°C) | Duty (kW) |
 |---|---|---|---|---|---|
-| H1 | Hot | 200 | 80 | 2.0 | 240 |
-| H2 | Hot | 150 | 50 | 4.0 | 400 |
-| H3 | Hot | 180 | 60 | 3.0 | 360 |
-| H4 | Hot | 130 | 40 | 2.5 | 225 |
-| C1 | Cold | 30 | 120 | 3.0 | 270 |
-| C2 | Cold | 40 | 130 | 2.5 | 225 |
-| C3 | Cold | 50 | 160 | 2.0 | 220 |
-| C4 | Cold | 20 | 100 | 4.0 | 320 |
+| H1 | Hot | 160.0 | 93.3 | 4.885 | 325.7 |
+| H2 | Hot | 248.9 | 137.8 | 5.861 | 651.3 |
+| H3 | Hot | 226.7 | 65.6 | 8.206 | 1322.1 |
+| H4 | Hot | 271.1 | 148.9 | 6.975 | 852.5 |
+| H5 | Hot | 198.9 | 65.6 | 9.847 | 1313.0 |
+| C1 | Cold | 60.0 | 160.0 | 4.235 | 423.5 |
+| C2 | Cold | 115.6 | 221.7 | 3.379 | 358.6 |
+| C3 | Cold | 37.8 | 221.1 | 4.689 | 859.7 |
+| C4 | Cold | 82.2 | 176.7 | 9.601 | 906.8 |
+| C5 | Cold | 93.3 | 204.4 | 7.722 | 858.0 |
 
-Total hot duty: 1225.0 kW  
-Total cold duty: 1035.0 kW  
-Surplus hot duty (must be rejected via cooling water): 190.0 kW
+Total hot duty: 4464.5 kW  
+Total cold duty: 3406.5 kW  
+Surplus: 1058.0 kW rejected via cooling water  
+Feasible process pairs: 18 out of 25
 
 ___
 
-### Optimal Network
+## Optimal Network
 
-#### Match Matrix
+### Match Matrix
 
-Rows are cold streams, columns are hot streams. Numbers show the order in which exchangers were placed.
+Rows are cold streams, columns are hot streams. Numbers show the placement order.
 
 ```
-            H1      H2      H3      H4
-  C1         .       .     [5]       .
-  C2        [2]     [3]      .       .
-  C3        [1]      .       .       .
-  C4         .      [4]      .      [6]
+            H1     H2     H3     H4     H5
+  C1       [1]    [3]     .      .      .
+  C2        .     [2]     .      .      .
+  C3        .      .      .     [6]     .
+  C4        .     [4]     .      .     [7]
+  C5        .      .     [5]     .      .
 ```
 
-#### Process Heat Exchangers
+![Network Match Matrix](assets/fig1_matrix.png)
+
+### Process Heat Exchangers
 
 | Unit | Hot | Cold | Duty (kW) | Annualized Cost ($/yr) |
 |---|---|---|---|---|
-| HX1 | H1 | C3 | 220.0 | 8,376 |
-| HX2 | H1 | C2 | 20.0 | 7,252 |
-| HX3 | H2 | C2 | 205.0 | 9,235 |
-| HX4 | H2 | C4 | 195.0 | 8,192 |
-| HX5 | H3 | C1 | 270.0 | 8,364 |
-| HX6 | H4 | C4 | 125.0 | 8,204 |
+| HX1 | H1 | C1 | 325.7 | 13,550 |
+| HX2 | H2 | C2 | 358.6 | 9,267 |
+| HX3 | H2 | C1 | 97.8 | 7,501 |
+| HX4 | H2 | C4 | 194.9 | 7,891 |
+| HX5 | H3 | C5 | 858.0 | 20,770 |
+| HX6 | H4 | C3 | 852.5 | 8,932 |
+| HX7 | H5 | C4 | 711.8 | 19,310 |
 
-#### Utility Units
+### Utility Units
 
-No steam heating was required. H3 and H4 both have target temperatures low enough that cooling water handles the remainder after process exchange.
+C3 required a small steam top-up of 7.2 kW because no remaining hot stream could reach its target temperature after process exchange. H3 and H5 carry large duties relative to available cold targets and require cooling water for the remainder.
 
 | Type | Stream | Duty (kW) | Annual Cost ($/yr) |
 |---|---|---|---|
-| Cooling Water | H3 | 90.0 | 5,400 |
-| Cooling Water | H4 | 100.0 | 6,000 |
+| Cooling Water | H3 | 464.0 | 27,842 |
+| Cooling Water | H5 | 601.1 | 36,067 |
+| Steam | C3 | 7.2 | 1,146 |
 
 ___
 
-### Cost Summary
+## Cost Summary
 
 | Component | Cost ($/yr) |
 |---|---|
-| Exchanger Capital (annualized at 25%/yr) | 49,623 |
-| Utility Operating Cost | 11,400 |
-| **Total Annualized Cost (TAC)** | **60,244** |
+| Exchanger Capital (annualized at 25%/yr) | 87,222 |
+| Utility Operating Cost | 65,055 |
+| **Total Annualized Cost (TAC)** | **128,646** |
 
 ___
 
-### Search Performance
+## Search Performance
 
 | Metric | Value |
 |---|---|
-| Nodes expanded | 235 |
-| Nodes generated | 599 |
-| Maximum tree depth reached | 6 |
-| Solution depth | 6 |
-| Time elapsed | ~0.02 seconds |
+| Nodes expanded | 745 |
+| Nodes generated | 2,247 |
+| Maximum tree depth reached | 7 |
+| Solution depth | 7 |
+| Time elapsed | 0.14 seconds |
 
-#### Tree Level Breakdown
+### Tree Level Breakdown
 
 | Level | Nodes Expanded |
 |---|---|
 | 0 | 1 |
-| 1 | 4 |
-| 2 | 17 |
-| 3 | 64 |
-| 4 | 84 |
-| 5 | 61 |
-| 6 | 4 |
+| 1 | 3 |
+| 2 | 15 |
+| 3 | 62 |
+| 4 | 219 |
+| 5 | 323 |
+| 6 | 74 |
+| 7 | 48 |
 
-Branching peaks at levels 3 and 4 where stream loads are partially satisfied and the most feasible pair combinations exist. By level 6, most streams are near their targets and the branching collapses.
+Branching peaks at level 5 where stream loads are partially satisfied and the most combinations remain feasible. The collapse at levels 6 and 7 reflects streams approaching their targets with fewer viable partners remaining.
+
+![A* Decision Tree Path](assets/fig2_path.png)
 
 ___
 
-### Energy Balance
+## Energy Balance
 
-All streams reached their target temperatures within the 0.5 kW tolerance.
+All streams satisfied within 0.5 kW tolerance.
 
 | Stream | Status |
 |---|---|
@@ -110,25 +120,25 @@ All streams reached their target temperatures within the 0.5 kW tolerance.
 | H2 | Satisfied |
 | H3 | Satisfied |
 | H4 | Satisfied |
+| H5 | Satisfied |
 | C1 | Satisfied |
 | C2 | Satisfied |
 | C3 | Satisfied |
 | C4 | Satisfied |
+| C5 | Satisfied |
+
+![Stream Energy Balance](assets/fig3_energy.png)
 
 ___
 
-## 8H/8C Synthetic Benchmark & Scalability
+## Composite Curves and Pinch Analysis
 
-The project now dynamically runs a double-sized variant directly after the 4H/4C problem. The **8H/8C Synthetic Benchmark** contains 16 streams and 64 total pairs, pushing the combinatorial branching factor significantly higher. 
+![Temperature-Enthalpy Composite Curves](assets/fig4_composite.png)
 
-To offset the exponentially expanded search matrix, the solver relies on the combined strength of the **P4 Anchor-Hot pruning** rule and the newly added **v3 primary admissible heuristic**—which integrates pinch-point composite curve limits (QHmin and QCmin) to prune suboptimal paths early. 
-
-The console execution concludes with a **Scalability Comparison** table, summarizing and comparing both dimensions directly, highlighting metrics such as the node expansion growth vs the network complexity, runtime (seconds), and final TAC.
+The composite curve plot shows the hot and cold streams combined into single curves on a temperature-enthalpy diagram. The cold curve is shifted horizontally until the minimum vertical gap equals the delta T min of 11.1°C, which defines the pinch point. QHmin and QCmin are the minimum utility targets that thermodynamics requires regardless of network configuration — any feasible network must use at least these amounts.
 
 ___
 
 ## Notes
 
-The network recovers heat between H1 and C3/C2, H2 and C2/C4, H3 and C1, and H4 and C4. No cold stream required steam because the total hot duty exceeds total cold duty by 190 kW, leaving enough process heat available for all cold targets.
-
-The search found the optimal solution for 4H/4C in 235 node expansions and milliseconds of computation. For context, a naive search without the anchor-hot pruning rule (P4) or the v3 pinch heuristic would explore the same network under exponentially more placement orderings and sub-optimal partial states.
+Pho and Lapidus (1973) could not solve this problem optimally by direct enumeration and resorted to a look-ahead heuristic with no optimality guarantee. This A* implementation finds the guaranteed optimal network in 745 node expansions and 0.14 seconds. H2 is the most active stream, matched against C1, C2, and C4. The small steam top-up on C3 (7.2 kW) is unavoidable once all hot streams have been exhausted against higher-priority cold targets.
