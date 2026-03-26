@@ -135,7 +135,7 @@ ___
 
 ![Temperature-Enthalpy Composite Curves](images/fig4_composite.png)
 
-The composite curve plot shows the hot and cold streams combined into single curves on a temperature-enthalpy diagram. The cold curve is shifted horizontally until the minimum vertical gap equals the delta T min of 11.1°C, which defines the pinch point. QHmin and QCmin are the minimum utility targets that thermodynamics requires regardless of network configuration — any feasible network must use at least these amounts.
+The composite curve plot shows the hot and cold streams combined into single curves on a temperature-enthalpy diagram. The cold curve is shifted horizontally until the minimum vertical gap equals the delta T min of 11.1°C, which defines the pinch point. QHmin and QCmin are the minimum utility targets that thermodynamics requires, regardless of network configuration — any feasible network must use at least these amounts.
 
 ___
 
