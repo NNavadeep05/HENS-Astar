@@ -1,6 +1,6 @@
 # CONCEPTS
 
-All concepts used in HENS-Astar are briefly explained here. 
+All concepts used in HENS-Astar are briefly explained here.
 ___
 
 ## **HEAT TRANSFER CONCEPTS**
