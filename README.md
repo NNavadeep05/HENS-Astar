@@ -155,7 +155,7 @@ ___
 
 ## Project Deliverables
 
-All project files including the report, presentation, and proposal are available here:
+All project files, including the report, presentation, and proposal, are available here:
 
 [Google Drive — Project Folder](https://drive.google.com/drive/folders/1qcz4D2Xnz6QGsVRfqSedNG8U6DwpPyEX?usp=sharing)
 
